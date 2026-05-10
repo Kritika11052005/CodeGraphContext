@@ -65,6 +65,7 @@ class GraphBuilder:
             ".lua": "lua",
             ".ex": "elixir",
             ".exs": "elixir",
+            ".el": "elisp",
             ".html": "html",
             ".css": "css",
         }
