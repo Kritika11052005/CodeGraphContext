@@ -35,6 +35,8 @@ async def run_indexing_in_process(db_type: str, project_path: Path, temp_test_di
 import os, sys, asyncio
 from dotenv import load_dotenv
 load_dotenv('/home/shashank/.codegraphcontext/.env')
+os.environ.setdefault('NEO4J_URI', 'bolt://localhost:7687')
+os.environ.setdefault('NEO4J_USERNAME', 'neo4j')
 os.environ['NEO4J_PASSWORD'] = '12345678'
 sys.path.insert(0, os.path.abspath('src'))
 from codegraphcontext.core import get_database_manager
@@ -115,6 +117,10 @@ async def test_database_parity_e2e(temp_test_dir):
     Run indexing against KuzuDB, LadybugDB, FalkorDB Lite, and Neo4j
     and verify 100% mathematical parity across all extracted nodes and relationships.
     """
+    os.environ.setdefault('NEO4J_URI', 'bolt://localhost:7687')
+    os.environ.setdefault('NEO4J_USERNAME', 'neo4j')
+    os.environ.setdefault('NEO4J_PASSWORD', '12345678')
+    
     project_path = Path("tests/fixtures/sample_projects/sample_project").resolve()
     
     db_types = ["kuzudb", "ladybugdb", "falkordb", "neo4j"]
