@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useParams } from "react-router-dom";
 import CodeGraphViewer from "../components/CodeGraphViewer";
 import LocalUploader from "../components/LocalUploader";
@@ -195,6 +195,10 @@ const Explore = () => {
   const [searchParams] = useSearchParams();
   const { owner, repo } = useParams();
   const [graphData, setGraphData] = useState<any>(null);
+  const graphDataRef = useRef<any>(null);
+  useEffect(() => {
+    graphDataRef.current = graphData;
+  }, [graphData]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progressText, setProgressText] = useState("");
@@ -715,10 +719,11 @@ const Explore = () => {
     const resolveGraph = async (targetRepo: string): Promise<any | null> => {
       const cleanTarget = targetRepo?.trim().toLowerCase();
       const cleanActive = activeRepoPath.trim().toLowerCase();
+      const currentGraph = graphDataRef.current;
 
       // If requested repo matches the currently loaded visualizer graph, return it instantly!
-      if (graphData && (cleanTarget === cleanActive || !targetRepo)) {
-        return graphData;
+      if (currentGraph && (cleanTarget === cleanActive || !targetRepo)) {
+        return currentGraph;
       }
 
       // Dynamic Scope: Fallback to reading the indexed repository from local IndexedDB cache in background!
@@ -730,7 +735,7 @@ const Explore = () => {
           if (cached) return cached;
         }
       }
-      return graphData;
+      return currentGraph;
     };
 
     // 3. Direct Kuzu WASM Query Handlers (e.g. definitions, callers, callees, search)
@@ -932,7 +937,7 @@ const Explore = () => {
     return () => {
       coordinator.stop();
     };
-  }, [graphData, owner, repo]);
+  }, [owner, repo]);
   
   // If bundleUrl is present, we download and parse it client-side
   useEffect(() => {
