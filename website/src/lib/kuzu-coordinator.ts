@@ -45,12 +45,11 @@ export class KuzuCoordinator {
     this.executeToolCallback = executeToolCallback;
   }
 
-  private handleVisibilityChange = () => {
+  private handleVisibilityChange = async () => {
     if (document.visibilityState === "visible" && this.isStarted) {
       console.log("[KuzuCoordinator] Page became visible/active. Self-healing WebSocket connections...");
-      // Forcibly tear down stale channel handles and resubscribe
-      const wasSubscribed = this.isSubscribed;
-      this.stop(true); // Keep isStarted flag true
+      // Forcibly tear down stale channel handles and await completion to prevent race conditions
+      await this.stop(true); // Keep isStarted flag true
       this.start();
     }
   };
@@ -185,7 +184,7 @@ export class KuzuCoordinator {
       });
   }
 
-  public stop(keepStarted = false) {
+  public async stop(keepStarted = false) {
     if (!keepStarted) {
       this.isStarted = false;
       if (typeof window !== "undefined" && typeof document !== "undefined") {
@@ -194,12 +193,16 @@ export class KuzuCoordinator {
     }
     if (this.channel) {
       console.log(`[KuzuCoordinator] Unsubscribing from query tunnel: ${this.channelName}`);
-      this.supabase.removeChannel(this.channel);
+      try {
+        await this.supabase.removeChannel(this.channel);
+      } catch (err) {}
       this.channel = null;
     }
     if (this.globalChannel) {
       console.log(`[KuzuCoordinator] Unsubscribing from global tools tunnel`);
-      this.supabase.removeChannel(this.globalChannel);
+      try {
+        await this.supabase.removeChannel(this.globalChannel);
+      } catch (err) {}
       this.globalChannel = null;
     }
     this.isSubscribed = false;
