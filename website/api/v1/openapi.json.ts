@@ -527,8 +527,8 @@ export default async function handler(req: any, res: any) {
             {
               name: "repo",
               in: "query",
-              description: "Active GitHub repository path in 'owner/repo' format to route the request.",
-              required: true,
+              description: "Optional GitHub repository path to isolate results.",
+              required: false,
               schema: { type: "string" }
             }
           ],
@@ -571,7 +571,7 @@ export default async function handler(req: any, res: any) {
       name: "session_id",
       in: "query",
       description: "Highly recommended 6-character unique session token of the user's browser tab for 100% isolated routing. Extract this from the user's prompt (e.g. 'session: a7c92b').",
-      required: false,
+      required: true,
       schema: { type: "string" }
     }
   ];
