@@ -252,6 +252,7 @@ export default async function handler(req: any, res: any) {
           });
         }
 
+        const cleanRepo = repo ? String(repo).trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//, "").replace(/\/$/, "") : "";
         const sessionToken = session_id ? String(session_id).trim().toLowerCase() : "";
 
         if (!sessionToken) {
