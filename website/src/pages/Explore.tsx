@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import JSZip from "jszip";
 import { parseFilesIntoGraph } from "../lib/parser";
 import { KuzuCoordinator } from "../lib/kuzu-coordinator";
+import { getOrCreateSessionId } from "../lib/utils";
 
 
 const IGNORED_DIRS = new Set([
@@ -807,13 +808,9 @@ const Explore = () => {
       
     const cleanRepoName = activeRepoPath.replace(/\//g, "_");
 
-    // 4. Extract version metadata (branch and commit) to build the version-scoped routing signature
-    const branchName = graphData.metadata?.branch || "main";
-    const commitSha = graphData.metadata?.commit || "latest";
-    const cleanBranch = branchName.replace(/\//g, "_").toLowerCase();
-    const cleanCommit = commitSha.length === 40 && /^[0-9a-fA-F]+$/.test(commitSha) ? commitSha.substring(0, 7).toLowerCase() : commitSha.toLowerCase();
-
-    const channelName = `cgc-tunnel-${cleanRepoName}-${cleanBranch}-${cleanCommit}`;
+    // 4. Compute 100% Isolated routing using anonymous user / device ID
+    const userId = getOrCreateSessionId();
+    const channelName = `cgc-tunnel-${userId}`;
 
     console.log(`[Explore Tunnel] Booting MCP signaling conduit: ${channelName}`);
 
@@ -859,10 +856,7 @@ const Explore = () => {
       const currentGraph = await resolveGraph(targetRepo);
 
       if (!currentGraph) {
-        return {
-          status: "offline",
-          message: `The repository '${targetRepo}' is not actively loaded or cached in this browser session. Please open the workspace dashboard to load the code.`
-        };
+        throw new Error(`SILENT_IGNORE: The repository '${targetRepo}' is not actively loaded or cached in this browser tab.`);
       }
 
       const cleanTarget = target?.trim();
@@ -938,10 +932,7 @@ const Explore = () => {
       const currentGraph = await resolveGraph(targetRepo);
 
       if (!currentGraph) {
-        return {
-          status: "offline",
-          message: `The repository '${targetRepo}' is not actively loaded or cached in this browser session. Please open the workspace dashboard to load the code.`
-        };
+        throw new Error(`SILENT_IGNORE: The repository '${targetRepo}' is not actively loaded or cached in this browser tab.`);
       }
 
       const nodes = currentGraph.nodes || [];

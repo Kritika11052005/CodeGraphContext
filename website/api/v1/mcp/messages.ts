@@ -234,8 +234,11 @@ export default async function handler(req: any, res: any) {
         const repo = toolArgs?.repo || toolArgs?.repository || "";
         const branch = toolArgs?.branch || "";
         const commit = toolArgs?.commit || "";
+        const session_id = toolArgs?.session_id || "";
 
-        if (!repo || typeof repo !== "string") {
+        const isGlobalTool = toolName === "list_indexed_repositories" || toolName === "search_registry_bundles";
+
+        if (!isGlobalTool && (!repo || typeof repo !== "string")) {
           return res.status(200).json({
             jsonrpc: "2.0",
             id,
@@ -249,13 +252,23 @@ export default async function handler(req: any, res: any) {
           });
         }
 
-        const cleanRepo = repo.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//, "").replace(/\/$/, "");
-        const cleanRepoName = cleanRepo.replace(/\//g, "_").toLowerCase();
-        const cleanBranch = branch ? String(branch).replace(/\//g, "_").toLowerCase() : "main";
-        const commitStr = commit ? String(commit) : "latest";
-        const cleanCommit = commitStr.length === 40 && /^[0-9a-fA-F]+$/.test(commitStr) ? commitStr.substring(0, 7).toLowerCase() : commitStr.toLowerCase();
-        
-        const channelName = `cgc-tunnel-${cleanRepoName}-${cleanBranch}-${cleanCommit}`;
+        const sessionToken = session_id ? String(session_id).trim().toLowerCase() : "";
+
+        if (!sessionToken) {
+          return res.status(200).json({
+            jsonrpc: "2.0",
+            id,
+            result: {
+              isError: true,
+              content: [{
+                type: "text",
+                text: "Error: Missing required argument 'session_id' inside tool arguments. Please provide your 6-character session token to establish connection."
+              }]
+            }
+          });
+        }
+
+        const channelName = `cgc-tunnel-${sessionToken}`;
         const channel = supabase.channel(channelName);
         const requestId = Math.random().toString(36).substring(2, 15);
         let hasResponded = false;

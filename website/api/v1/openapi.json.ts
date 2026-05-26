@@ -566,6 +566,13 @@ export default async function handler(req: any, res: any) {
       description: "Optional active 7-character commit hash of the repository (e.g. 'a1b2c3d') for routing isolation.",
       required: false,
       schema: { type: "string" }
+    },
+    {
+      name: "session_id",
+      in: "query",
+      description: "Highly recommended 6-character unique session token of the user's browser tab for 100% isolated routing. Extract this from the user's prompt (e.g. 'session: a7c92b').",
+      required: false,
+      schema: { type: "string" }
     }
   ];
 
