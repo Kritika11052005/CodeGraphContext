@@ -74,7 +74,17 @@ export async function packageCgcBundle(
     standardisedName = `${repoName}.cgc`;
   }
 
+  // Extract and clean extraMetadata to prevent contaminating the strict standardized schema
+  const cleanExtra = { ...extraMetadata };
+  delete cleanExtra.generator;
+  delete cleanExtra.timestamp;
+  delete cleanExtra.format_version;
+  delete cleanExtra.exported_at;
+  delete cleanExtra.graph_metrics;
+  delete cleanExtra.name;
+
   const metadata = {
+    ...cleanExtra,
     format_version: "1.0.0",
     generator: "WASMv0.0.1",
     exported_at: new Date().toISOString(),
@@ -85,8 +95,7 @@ export async function packageCgcBundle(
     },
     // UI dynamic context keys
     repo: repoName,
-    version: version,
-    ...extraMetadata
+    version: version
   };
   zip.file("metadata.json", JSON.stringify(metadata, null, 2));
 
