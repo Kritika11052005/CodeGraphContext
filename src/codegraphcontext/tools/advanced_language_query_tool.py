@@ -1,5 +1,7 @@
+from __future__ import annotations
 import re
 import logging
+from typing import TYPE_CHECKING
 #importing all the language toolkits
 from ..tools.query_tool_languages.c_toolkit import CToolkit
 from ..tools.query_tool_languages.cpp_toolkit import CppToolkit
@@ -14,7 +16,8 @@ from ..tools.query_tool_languages.csharp_toolkit import CSharpToolkit
 from ..tools.query_tool_languages.dart_toolkit import DartToolkit
 from ..tools.query_tool_languages.perl_toolkit import PerlToolkit
 
-from ..core.database import DatabaseManager
+if TYPE_CHECKING:
+    from ..core.database import DatabaseManager
 from ..utils.debug_log import debug_log
 
 logger = logging.getLogger(__name__)

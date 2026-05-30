@@ -9,7 +9,7 @@ import json
 import sys
 import shutil
 import yaml 
-from codegraphcontext.core.database import DatabaseManager
+
 
 console = Console()
 
@@ -577,6 +577,7 @@ def setup_existing_db():
             
             # Validate the user input
             console.print("\n[cyan]🔍 Validating configuration...[/cyan]")
+            from codegraphcontext.core.database import DatabaseManager
             is_valid, validation_error = DatabaseManager.validate_config(
                 manual_creds.get("uri", ""),
                 manual_creds.get("username", ""),
@@ -695,6 +696,7 @@ def setup_hosted_db():
             
             # Validate the user input
             console.print("\n[cyan]🔍 Validating configuration...[/cyan]")
+            from codegraphcontext.core.database import DatabaseManager
             is_valid, validation_error = DatabaseManager.validate_config(
                 manual_creds.get("uri", ""),
                 manual_creds.get("username", ""),
