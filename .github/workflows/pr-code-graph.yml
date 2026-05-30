@@ -51,11 +51,11 @@ jobs:
           OWNER="${{ github.repository_owner }}"
           REPO="${{ github.event.repository.name }}"
           PR_NUMBER="${{ github.event.pull_request.number }}"
-
-          # Run the analysis script
-          bash scripts/pr-graph-analyze.sh \
-            "$OWNER" "$REPO" "$PR_NUMBER" \
-            "./pr-graph-output"
+          
+          # The frontend dynamically generates the topology via GitHub APIs,
+          # so we just output a placeholder artifact to satisfy the workflow upload step.
+          mkdir -p "./pr-graph-output"
+          echo '{"info": "Graph is dynamically computed in the browser via GitHub API"}' > "./pr-graph-output/pr-${PR_NUMBER}-metadata.json"
 
       # ── 5. Upload the JSON as a build artifact ─────────────────────────
       - name: Upload PR Graph JSON
