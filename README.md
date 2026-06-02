@@ -312,6 +312,7 @@ codegraphcontext find pattern "Auth" --viz
     *   RooCode
     *   Amazon Q Developer
     *   Kiro
+    *   OpenCode
 
     Upon successful configuration, `codegraphcontext mcp setup` will generate and place the necessary configuration files:
     *   It creates an `mcp.json` file in your current directory for reference.
