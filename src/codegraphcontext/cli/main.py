@@ -34,6 +34,7 @@ from .cli_helpers import (
     cypher_helper_visual,
     visualize_helper,
     reindex_helper,
+    update_helper,
     clean_helper,
     stats_helper,
     _initialize_services,
@@ -42,6 +43,7 @@ from .cli_helpers import (
     list_watching_helper,
     setup_scip_helper,
 )
+from .hook_manager import HookError, get_hook_status, install_hooks, uninstall_hooks
 
 # Set the log level for the noisy neo4j, asyncio, and urllib3 loggers to keep the output clean.
 # Get the log level from config, defaulting to WARNING
@@ -767,6 +769,71 @@ def bundle_load(
         console.print("[dim]Use 'cgc registry list' to see available bundles[/dim]")
         raise typer.Exit(code=1)
 
+# ============================================================================
+# HOOK COMMAND GROUP - Git integration
+# ============================================================================
+
+hook_app = typer.Typer(help="Install Git hooks that keep the CGC graph in sync")
+app.add_typer(hook_app, name="hook")
+
+
+@hook_app.command("install")
+def hook_install(
+    path: str = typer.Argument(".", help="Path inside the Git repository"),
+    force: bool = typer.Option(False, "--force", "-f", help="Replace existing non-CGC hook files"),
+):
+    """
+    Install CGC-managed Git hooks in the nearest repository.
+
+    The installed hooks run `cgc update <repo> --quiet` after commits and
+    checkouts. Existing non-CGC hooks are preserved unless --force is used.
+    """
+    try:
+        status = install_hooks(path, force=force)
+    except HookError as exc:
+        console.print(f"[bold red]Hook install failed:[/bold red] {exc}")
+        raise typer.Exit(code=1)
+
+    console.print(f"[green]✓[/green] Installed CGC hooks in [bold]{status.repo_root}[/bold]")
+    console.print(f"[dim]Git directory: {status.git_dir}[/dim]")
+
+
+@hook_app.command("uninstall")
+def hook_uninstall(
+    path: str = typer.Argument(".", help="Path inside the Git repository"),
+):
+    """Remove CGC-managed Git hooks and local merge-driver config."""
+    try:
+        status = uninstall_hooks(path)
+    except HookError as exc:
+        console.print(f"[bold red]Hook uninstall failed:[/bold red] {exc}")
+        raise typer.Exit(code=1)
+
+    console.print(f"[green]✓[/green] Removed CGC hooks from [bold]{status.repo_root}[/bold]")
+
+
+@hook_app.command("status")
+def hook_status(
+    path: str = typer.Argument(".", help="Path inside the Git repository"),
+):
+    """Show whether CGC-managed Git hooks are installed."""
+    try:
+        status = get_hook_status(path)
+    except HookError as exc:
+        console.print(f"[bold red]Hook status failed:[/bold red] {exc}")
+        raise typer.Exit(code=1)
+
+    table = Table(title="CGC Git Hook Status", show_header=True, header_style="bold magenta")
+    table.add_column("Check", style="cyan")
+    table.add_column("Status")
+    table.add_row("Repository", str(status.repo_root))
+    table.add_row("Git directory", str(status.git_dir))
+    table.add_row("Managed hooks", ", ".join(status.installed_hooks) or "none")
+    table.add_row("Unmanaged hooks", ", ".join(status.unmanaged_hooks) or "none")
+    table.add_row("Merge driver", "installed" if status.has_merge_driver else "missing")
+    table.add_row(".gitattributes", "installed" if status.has_gitattributes_entry else "missing")
+    console.print(table)
+
 # Shortcut commands at root level
 @app.command("export", rich_help_panel="Bundle Shortcuts")
 def export_shortcut(
@@ -1139,6 +1206,23 @@ def index(
         reindex_helper(path, context)
     else:
         index_helper(path, context)
+
+@app.command()
+def update(
+    path: Optional[str] = typer.Argument(None, help="Path to refresh. Defaults to current directory."),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Reduce output when running from automation"),
+    context: Optional[str] = typer.Option(None, "--context", "-c", help="Specific context to use (overrides mode/default)"),
+):
+    """
+    Refresh an existing repository index.
+
+    This command is intentionally small and hook-friendly; Git hooks installed
+    with `cgc hook install` call it after commits and checkouts.
+    """
+    _load_credentials()
+    if path is None:
+        path = str(Path.cwd())
+    update_helper(path, context)
 
 @app.command()
 def clean(
