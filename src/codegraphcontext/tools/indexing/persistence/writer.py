@@ -1311,7 +1311,8 @@ class GraphWriter:
         info_logger(f"[SPRING_DATA] Written {written} READS/WRITES derived-query edges")
 
     def delete_repository_from_graph(self, repo_path: str) -> bool:
-        repo_path_str = repo_path
+        # Normalize path separators for cross-platform compatibility (Windows uses \)
+        repo_path_str = repo_path.replace("\\", "/")
         path_prefix = repo_path_str + "/"
         with self.driver.session() as session:
             result = session.run(
