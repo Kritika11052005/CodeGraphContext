@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 from ..core.jobs import JobManager, JobStatus
 from ..utils.debug_log import debug_log, error_logger, info_logger, warning_logger
 from .indexing.constants import DEFAULT_IGNORE_PATTERNS
-from .indexing.persistence.writer import GraphWriter
+from .indexing.persistence.writer import GraphWriter, sort_import_rows_for_metadata
 from .indexing.pipeline import run_tree_sitter_index_async
 from .indexing.pre_scan import pre_scan_for_imports
 from .indexing.resolution.calls import build_function_call_groups, resolve_function_call
@@ -520,6 +520,7 @@ class GraphBuilder:
                 """, batch=js_imports, file_path=file_path_str)
 
             if other_imports:
+                other_imports = sort_import_rows_for_metadata(other_imports)
                 session.run("""
                     UNWIND $batch AS row
                     MATCH (f:File {path: $file_path})
