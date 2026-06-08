@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
@@ -350,9 +351,11 @@ class GraphBuilder:
                         if item.get('class_context'):
                             class_fn_batch.append({
                                 'class_name': item['class_context'],
+                                'class_line': item.get('class_context_line', -1)
+                                if item.get('class_context_line') is not None
+                                else -1,
                                 'func_name': item['name'],
                                 'func_line': item['line_number'],
-                                'lang': lang or '',
                             })
                         if item.get('context_type') == 'function_definition':
                             nested_fn_batch.append({
@@ -456,6 +459,7 @@ class GraphBuilder:
                         UNWIND $batch AS row
                         MATCH (c:Class {name: row.class_name, path: $file_path})
                         MATCH (fn:Function {name: row.func_name, path: $file_path, line_number: row.func_line})
+                        WHERE row.class_line < 0 OR c.line_number = row.class_line
                         MERGE (c)-[:CONTAINS]->(fn)
                     """, batch=other_batch, file_path=file_path_str)
 
@@ -492,7 +496,18 @@ class GraphBuilder:
                             'line_number': imp.get('line_number'),
                         })
                 else:
-                    other_imports.append(imp)
+                    module_name = imp.get('name') or imp.get('source') or imp.get('full_import_name')
+                    if not module_name:
+                        continue
+                    full_import_name = imp.get('full_import_name') or imp.get('source') or module_name
+                    other_imports.append({
+                        'name': module_name,
+                        'full_import_name': full_import_name,
+                        'imported_name': imp.get('imported_name') or module_name,
+                        'alias': imp.get('alias'),
+                        'line_number': imp.get('line_number') or 0,
+                        'lang': imp.get('lang') or lang,
+                    })
 
             if js_imports:
                 session.run("""
@@ -505,15 +520,17 @@ class GraphBuilder:
                 """, batch=js_imports, file_path=file_path_str)
 
             if other_imports:
-                # Non-JS languages share the same shape: name, alias, full_import_name
                 session.run("""
                     UNWIND $batch AS row
                     MATCH (f:File {path: $file_path})
                     MERGE (m:Module {name: row.name})
-                    SET m.alias = row.alias,
+                    SET m.lang = coalesce(row.lang, m.lang),
                         m.full_import_name = coalesce(row.full_import_name, m.full_import_name)
-                    MERGE (f)-[r:IMPORTS {line_number: row.line_number}]->(m)
-                    SET r.alias = row.alias
+                    MERGE (f)-[r:IMPORTS]->(m)
+                    SET r.line_number = row.line_number,
+                        r.alias = row.alias,
+                        r.imported_name = row.imported_name,
+                        r.full_import_name = row.full_import_name
                 """, batch=other_imports, file_path=file_path_str)
 
             # ── Batch: Ruby Class INCLUDES Module ─────────────────────────────

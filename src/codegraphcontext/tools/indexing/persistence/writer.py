@@ -462,8 +462,9 @@ class GraphWriter:
                     MERGE (m:Module {name: row.name})
                     SET m.lang = coalesce(row.lang, m.lang),
                         m.full_import_name = coalesce(row.full_import_name, m.full_import_name)
-                    MERGE (f)-[r:IMPORTS {line_number: row.line_number}]->(m)
-                    SET r.alias = coalesce(row.alias, ""),
+                    MERGE (f)-[r:IMPORTS]->(m)
+                    SET r.line_number = row.line_number,
+                        r.alias = coalesce(row.alias, ""),
                         r.imported_name = row.imported_name,
                         r.full_import_name = row.full_import_name
                 """,
