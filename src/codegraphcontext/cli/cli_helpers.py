@@ -234,8 +234,8 @@ async def _run_index_with_progress(graph_builder: GraphBuilder, path_obj: Path, 
                 if job.total_files > 0:
                     progress.update(task_id, total=job.total_files, completed=job.processed_files)
                 
-                # Update the current filename in the UI
-                current_file = job.current_file or job.status_message or ""
+                # Prefer post-processing status over the last parsed file path
+                current_file = job.status_message or job.current_file or ""
                 if len(current_file) > 40:
                     current_file = "..." + current_file[-37:]
                 progress.update(task_id, filename=current_file)
@@ -260,6 +260,10 @@ def index_helper(path: str, context: Optional[str] = None):
     """Synchronously indexes a repository in a given context."""
     time_start = time.time()
     path_obj = Path(path).resolve()
+    # Normalize to forward slashes for cross-platform DB consistency.
+    # The graph DB always stores paths via Path.resolve().as_posix(),
+    # so Cypher queries must also use forward slashes on Windows.
+    repo_path_str = path_obj.as_posix()
     index_cwd = path_obj if path_obj.is_dir() else path_obj.parent
     services = _initialize_services(context, cwd=index_cwd)
     if not all(services[:3]):
@@ -283,7 +287,7 @@ def index_helper(path: str, context: Optional[str] = None):
             with db_manager.get_driver().session() as session:
                 result = session.run(
                     "MATCH (r:Repository {path: $path})-[:CONTAINS*]->(f:File) RETURN count(DISTINCT f) as file_count",
-                    path=str(path_obj)
+                    path=repo_path_str
                 )
                 record = result.single()
                 file_count = record["file_count"] if record else 0
