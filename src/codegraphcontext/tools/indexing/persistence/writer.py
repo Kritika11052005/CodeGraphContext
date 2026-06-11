@@ -667,12 +667,9 @@ class GraphWriter:
     ) -> None:
         batch_size = 1000
 
-        backend = (
-            getattr(self._db_manager, "get_backend_type", None)
-            or getattr(self.driver, "get_backend_type", None)
-            or (lambda: "neo4j")
-        )()
+        backend = get_backend_type(self.driver, self._db_manager)
         calls_keyword = "CREATE" if backend in ("neo4j", "nornic") else "MERGE"
+        info_logger(f"[CALLS] backend={backend}, using {calls_keyword} for CALLS edges")
 
         fn_to_fn = fn_to_fn or []
         fn_to_class = fn_to_class or []
@@ -697,8 +694,6 @@ class GraphWriter:
             (file_to_interface, "File", "Interface"),
             (file_to_object, "File", "Object"),
         ]
-
-        backend = get_backend_type(self.driver, self._db_manager)
         def _work(session):
             for batch_data, caller_label, called_label in queries:
                 if not batch_data:
@@ -766,77 +761,82 @@ class GraphWriter:
 
                 called_context_clause = _called_context_clause(called_label)
 
-                if caller_label == "File":
-                    called_match = (
-                        f"MATCH (called:File {{path: row.called_file_path}})"
-                        if called_label == "File"
-                        else f"MATCH (called:{called_label} {{name: row.called_name, path: row.called_file_path}})"
-                    )
-                    called_where = (
-                        ""
-                        if called_label == "File"
-                        else "WHERE (row.called_line_number <= 0 OR called.line_number = row.called_line_number)"
-                    )
-                    q = f"""
-                        UNWIND $batch AS row
-                        MATCH (caller:File {{path: row.caller_file_path}})
-                        {called_match}
-                        {called_where}
-                          {called_context_clause}
-                        {calls_keyword} (caller)-[call:CALLS {{line_number: row.line_number, full_call_name: row.full_call_name, args_key: row.args_key}}]->(called)
+                caller_match = (
+                    f"MATCH (caller:File {{path: row.caller_file_path}})"
+                    if caller_label == "File"
+                    else f"MATCH (caller:`{caller_label}` {{name: row.caller_name, path: row.caller_file_path, line_number: row.caller_line_number}})"
+                )
+                set_clause = """
                         SET call.args = row.args
                         SET call.confidence = row.confidence
                         SET call.resolution_tier = row.resolution_tier
-                        SET call.confidence_label = row.confidence_label
-                    """
-                elif called_label == "Parameter":
-                    q = f"""
+                        SET call.confidence_label = row.confidence_label"""
+                create_clause = f"{calls_keyword} (caller)-[call:CALLS {{line_number: row.line_number, full_call_name: row.full_call_name, args_key: row.args_key}}]->(called)"
+
+                if called_label == "Parameter":
+                    q_with_line = f"""
                         UNWIND $batch AS row
-                        MATCH (caller:{caller_label} {{name: row.caller_name, path: row.caller_file_path, line_number: row.caller_line_number}})
+                        {caller_match}
                         MATCH (called:Parameter {{name: row.called_name, path: row.called_file_path, function_line_number: row.called_line_number}})
-                        {calls_keyword} (caller)-[call:CALLS {{line_number: row.line_number, full_call_name: row.full_call_name, args_key: row.args_key}}]->(called)
-                        SET call.args = row.args
-                        SET call.confidence = row.confidence
-                        SET call.resolution_tier = row.resolution_tier
-                        SET call.confidence_label = row.confidence_label
+                        {create_clause}{set_clause}
                     """
+                    q_without_line = q_with_line
                 elif called_label == "File":
-                    q = f"""
+                    q_with_line = f"""
                         UNWIND $batch AS row
-                        MATCH (caller:{caller_label} {{name: row.caller_name, path: row.caller_file_path, line_number: row.caller_line_number}})
+                        {caller_match}
                         MATCH (called:File {{path: row.called_file_path}})
-                        {calls_keyword} (caller)-[call:CALLS {{line_number: row.line_number, full_call_name: row.full_call_name, args_key: row.args_key}}]->(called)
-                        SET call.args = row.args
-                        SET call.confidence = row.confidence
-                        SET call.resolution_tier = row.resolution_tier
-                        SET call.confidence_label = row.confidence_label
+                        {create_clause}{set_clause}
                     """
+                    q_without_line = q_with_line
                 else:
-                    q = f"""
+                    q_with_line = f"""
                         UNWIND $batch AS row
-                        MATCH (caller:{caller_label} {{name: row.caller_name, path: row.caller_file_path, line_number: row.caller_line_number}})
-                        MATCH (called:{called_label} {{name: row.called_name, path: row.called_file_path}})
-                        WHERE (row.called_line_number <= 0 OR called.line_number = row.called_line_number)
-                          {called_context_clause}
-                        {calls_keyword} (caller)-[call:CALLS {{line_number: row.line_number, full_call_name: row.full_call_name, args_key: row.args_key}}]->(called)
-                        SET call.args = row.args
-                        SET call.confidence = row.confidence
-                        SET call.resolution_tier = row.resolution_tier
-                        SET call.confidence_label = row.confidence_label
+                        {caller_match}
+                        MATCH (called:`{called_label}` {{name: row.called_name, path: row.called_file_path, line_number: row.called_line_number}})
+                        {"WHERE " + called_context_clause.lstrip("AND ") if called_context_clause else ""}
+                        {create_clause}{set_clause}
+                    """
+                    q_without_line = f"""
+                        UNWIND $batch AS row
+                        {caller_match}
+                        MATCH (called:`{called_label}` {{name: row.called_name, path: row.called_file_path}})
+                        {"WHERE " + called_context_clause.lstrip("AND ") if called_context_clause else ""}
+                        {create_clause}{set_clause}
                     """
 
                 t0 = time.time()
-                for i in range(0, len(sanitized_batch), batch_size):
+                total = len(sanitized_batch)
+                fast_total = sum(1 for r in sanitized_batch if r.get("called_line_number", 0) > 0)
+                slow_total = total - fast_total
+                info_logger(f"[CALLS] {caller_label}-to-{called_label}: {total} edges — fast path (line known): {fast_total} ({100*fast_total//total if total else 0}%), slow path: {slow_total} ({100*slow_total//total if total else 0}%)")
+                for i in range(0, total, batch_size):
                     batch = sanitized_batch[i : i + batch_size]
-                    try:
-                        session.run(q, batch=batch)
-                    except Exception as e:
-                        if _is_binder_exception(e):
+                    batch_with_line = [r for r in batch if r.get("called_line_number", 0) > 0]
+                    batch_without_line = [r for r in batch if r.get("called_line_number", 0) <= 0]
+                    for q, sub_batch in ((q_with_line, batch_with_line), (q_without_line, batch_without_line)):
+                        if not sub_batch:
                             continue
-                        raise e
-                info_logger(f"[CALLS] {caller_label}-to-{called_label}: {len(sanitized_batch)} edges written in {time.time()-t0:.1f}s")
+                        captured_q, captured_b = q, sub_batch
+                        def _batch_work(tx, _q=captured_q, _b=captured_b):
+                            tx.run(_q, batch=_b)
+                        try:
+                            if hasattr(session, "execute_write"):
+                                session.execute_write(_batch_work)
+                            elif hasattr(session, "write_transaction"):
+                                session.write_transaction(_batch_work)
+                            else:
+                                session.run(q, batch=sub_batch)
+                        except Exception as e:
+                            if _is_binder_exception(e):
+                                continue
+                            raise e
+                    written_so_far = min(i + batch_size, total)
+                    info_logger(f"[CALLS] {caller_label}-to-{called_label}: {written_so_far}/{total} edges written ({time.time()-t0:.1f}s elapsed)")
+                info_logger(f"[CALLS] {caller_label}-to-{called_label}: {total} edges written in {time.time()-t0:.1f}s")
 
-        execute_write_operation(self.driver, backend, _work)
+        with self.driver.session() as session:
+            _work(session)
         info_logger("[CALLS] All relationships processed.")
 
     def _create_csharp_inheritance_and_interfaces(
