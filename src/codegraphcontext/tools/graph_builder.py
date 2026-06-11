@@ -853,7 +853,7 @@ class GraphBuilder:
             return None
 
     async def _build_graph_from_scip(
-        self, path: Path, is_dependency: bool, job_id: Optional[str], lang: str
+        self, path: Path, is_dependency: bool, job_id: Optional[str], lang: str, cgcignore_path: Optional[str] = None
     ):
         from . import scip_indexer
 
@@ -904,7 +904,7 @@ class GraphBuilder:
                 if detected_lang and is_scip_available(detected_lang):
                     info_logger(f"SCIP_INDEXER=true — using SCIP for language: {detected_lang}")
                     try:
-                        await self._build_graph_from_scip(path, is_dependency, job_id, detected_lang)
+                        await self._build_graph_from_scip(path, is_dependency, job_id, detected_lang, cgcignore_path)
                         return
                     except Exception as e:
                         warning_logger(
