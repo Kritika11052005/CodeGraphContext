@@ -122,6 +122,13 @@ codegraphcontext = ["viz/dist/**/*"]
 where = ["src"]
 include = ["codegraphcontext*"]
 
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

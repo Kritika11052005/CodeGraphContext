@@ -263,7 +263,7 @@ class TestAlreadyExistsLogging:
         session, conn, _ = _make_session()
         conn.execute.side_effect = Exception("Table foo already exists")
 
-        with patch("codegraphcontext.core.database_kuzu.debug_log") as mock_debug:
+        with patch("codegraphcontext.core.database_embedded_kuzu.debug_log") as mock_debug:
             session.run("CREATE NODE TABLE foo(id STRING, PRIMARY KEY(id))")
 
         assert mock_debug.called, "debug_log was not called for 'already exists' collision"
