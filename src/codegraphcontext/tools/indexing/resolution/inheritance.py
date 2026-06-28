@@ -19,6 +19,9 @@ def resolve_inheritance_link(
     if base_class_str == "object":
         return None
 
+    if not base_class_str:
+        return None
+
     # Unwrap JS/TS mixins like Swimmable(Flyable(Person)) -> Person
     m = re.search(r'([A-Za-z0-9_.]+)(?:\s*\))*$', base_class_str)
     if m:
@@ -493,6 +496,8 @@ def build_embeds_links(
             if not struct_name:
                 continue
             for base in struct.get("bases") or []:
+                if not base:
+                    continue
                 base_name = base.split(".")[-1]
                 if base_name not in struct_names:
                     continue
