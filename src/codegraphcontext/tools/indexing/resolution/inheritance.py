@@ -92,8 +92,9 @@ def build_inheritance_and_csharp_files(
                 local_class_names.add(item["name"])
 
         local_imports = {
-            imp.get("alias") or imp["name"].split(".")[-1]: imp["name"]
+            imp.get("alias") or (imp.get("name") or "").split(".")[-1]: imp.get("name")
             for imp in file_data.get("imports", [])
+            if imp.get("name")
         }
 
         for key in ["classes", "structs", "traits", "interfaces", "mixins", "enums", "extensions", "variables"]:
@@ -323,6 +324,8 @@ def _resolve_decorator_path(
         return caller_path
     if decorator_name in local_imports:
         imported = local_imports[decorator_name]
+        if not imported:
+            return caller_path
         lookup = imported.split(".")[-1]
         paths = imports_map.get(lookup, imports_map.get(imported, []))
         if len(paths) == 1:
