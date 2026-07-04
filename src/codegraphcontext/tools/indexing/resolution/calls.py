@@ -1751,9 +1751,9 @@ def build_function_call_groups(
 
     def file_local_imports(fd: Dict[str, Any]) -> Dict[str, str]:
         return {
-            imp.get("alias") or imp["name"].split(".")[-1]: imp["name"]
+            imp.get("alias") or (imp.get("name") or "").split(".")[-1]: imp.get("name")
             for imp in fd.get("imports", [])
-            if not imp["name"].endswith(".*")
+            if imp.get("name") and not imp["name"].endswith(".*")
         }
 
     def file_package(fd: Dict[str, Any]) -> Optional[str]:
@@ -2142,9 +2142,9 @@ def build_function_call_groups(
             if c.get("trait_method_map")
         }
         local_imports = {
-            imp.get("alias") or imp["name"].split(".")[-1]: imp["name"]
+            imp.get("alias") or (imp.get("name") or "").split(".")[-1]: imp.get("name")
             for imp in file_data.get("imports", [])
-            if not imp["name"].endswith(".*")
+            if imp.get("name") and not imp["name"].endswith(".*")
         }
         wildcard_imports = [
             imp["name"][:-2]
