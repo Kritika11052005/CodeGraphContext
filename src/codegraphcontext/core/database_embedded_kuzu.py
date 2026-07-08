@@ -418,7 +418,9 @@ class EmbeddedGraphManager(GraphQueryInterface):
                 # Without this call the process hangs on exit because the
                 # embedded Kùzu engine keeps background threads alive.
                 try:
-                    if not self._db.is_closed():
+                    is_closed_attr = getattr(self._db, "is_closed", False)
+                    is_closed = is_closed_attr() if callable(is_closed_attr) else is_closed_attr
+                    if not is_closed:
                         self._db.close()
                         info_logger(f"{self.BACKEND_SPEC.display_name} database closed successfully")
                 except Exception as e:

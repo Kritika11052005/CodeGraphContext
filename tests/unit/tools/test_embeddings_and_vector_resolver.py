@@ -60,6 +60,9 @@ class _FakeDriver:
     def session(self):
         return self._session
 
+    def get_backend_type(self):
+        return "neo4j"
+
 
 # ---------------------------------------------------------------------------
 # Tests: EmbeddingPipeline
@@ -91,12 +94,12 @@ class TestEmbeddingPipeline:
     def test_run_calls_embed_batch_for_each_batch(self):
         """With 3 nodes and batch_size=2, embed_batch must be called twice."""
         nodes = [
-            {"path": "/a.java", "name": "execute", "line_number": 1,
+            {"path": "/opt/repos/myapp/a.java", "name": "execute", "line_number": 1,
              "qualified_name": "com.example.billing.BillingService.execute",
              "docstring": None, "parameters": []},
-            {"path": "/b.java", "name": "process", "line_number": 5,
+            {"path": "/opt/repos/myapp/b.java", "name": "process", "line_number": 5,
              "qualified_name": None, "docstring": "processes order", "parameters": ["orderId"]},
-            {"path": "/c.java", "name": "validate", "line_number": 10,
+            {"path": "/opt/repos/myapp/c.java", "name": "validate", "line_number": 10,
              "qualified_name": "com.example.auth.Authenticator.validate",
              "docstring": None, "parameters": ["token"]},
         ]
@@ -120,7 +123,7 @@ class TestEmbeddingPipeline:
     def test_run_writes_embeddings_back_to_neo4j(self):
         """Each Write call must include an UNWIND query that sets f.embedding."""
         nodes = [
-            {"path": "/a.java", "name": "execute", "line_number": 1,
+            {"path": "/opt/repos/myapp/a.java", "name": "execute", "line_number": 1,
              "qualified_name": None, "docstring": None, "parameters": []},
         ]
         session = _RecordingSession(responses=[
@@ -144,7 +147,7 @@ class TestEmbeddingPipeline:
     def test_vector_index_creation_is_first_call(self):
         """Vector index DDL must be issued before any embed or write calls."""
         nodes = [
-            {"path": "/a.java", "name": "fn", "line_number": 1,
+            {"path": "/opt/repos/myapp/a.java", "name": "fn", "line_number": 1,
              "qualified_name": None, "docstring": None, "parameters": []},
         ]
         session = _RecordingSession(responses=[
@@ -169,11 +172,11 @@ class TestEmbeddingPipeline:
     def test_embed_batch_failure_skips_batch_but_continues(self):
         """An embedder failure on one batch must not crash the pipeline."""
         nodes = [
-            {"path": "/a.java", "name": "fn1", "line_number": 1,
+            {"path": "/opt/repos/myapp/a.java", "name": "fn1", "line_number": 1,
              "qualified_name": None, "docstring": None, "parameters": []},
-            {"path": "/b.java", "name": "fn2", "line_number": 2,
+            {"path": "/opt/repos/myapp/b.java", "name": "fn2", "line_number": 2,
              "qualified_name": None, "docstring": None, "parameters": []},
-            {"path": "/c.java", "name": "fn3", "line_number": 3,
+            {"path": "/opt/repos/myapp/c.java", "name": "fn3", "line_number": 3,
              "qualified_name": None, "docstring": None, "parameters": []},
         ]
         session = _RecordingSession(responses=[

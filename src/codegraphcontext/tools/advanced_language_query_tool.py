@@ -17,6 +17,9 @@ from ..tools.query_tool_languages.csharp_toolkit import CSharpToolkit
 from ..tools.query_tool_languages.dart_toolkit import DartToolkit
 from ..tools.query_tool_languages.elisp_toolkit import ElispToolkit
 from ..tools.query_tool_languages.perl_toolkit import PerlToolkit
+from ..tools.query_tool_languages.scala_toolkit import ScalaToolkit
+from ..tools.query_tool_languages.swift_toolkit import SwiftToolkit
+from ..tools.query_tool_languages.haskell_toolkit import HaskellToolkit
 
 if TYPE_CHECKING:
     from ..core.database import DatabaseManager
@@ -47,6 +50,9 @@ class Advanced_language_query:
         "dart": DartToolkit,
         "elisp": ElispToolkit,
         "perl": PerlToolkit,
+        "scala": ScalaToolkit,
+        "swift": SwiftToolkit,
+        "haskell": HaskellToolkit,
     }
     Supported_queries = {
         "repository": "Repository",

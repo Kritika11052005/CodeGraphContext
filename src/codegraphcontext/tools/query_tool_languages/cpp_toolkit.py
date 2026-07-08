@@ -1,88 +1,91 @@
 # src/codegraphcontext/tools/query_tool_languages/cpp_toolkit.py
 class CppToolkit:
-    """Handles Neo4j queries for C++ file graph."""
-    def get_cypher_query(query: str) -> str:
-        """
-        Returns a Cypher query string based on the query type requested.
+    """Cypher queries for C++ graph data."""
 
-        Supported query types:
-        - functions
-        - classes
-        - imports
-        - structs
-        - enums
-        - unions
-        - macros
-        - variables
-        """
+    def get_cypher_query(self, query: str) -> str:
+        query = query.strip()
 
-
-        query = query.strip().lower()
-
-        if query == "functions":
+        if query == "Repository":
             return """
-                MATCH (f:Function)
-                RETURN f.name AS name, f.path AS path, 
-                    f.line_number AS line_number, f.docstring AS docstring
-                ORDER BY f.path, f.line_number
+                MATCH (r:Repository)-[:CONTAINS*]->(f:File)
+                WHERE f.path ENDS WITH '.cpp' OR f.path ENDS WITH '.h' OR f.path ENDS WITH '.hpp' OR f.path ENDS WITH '.hh'
+                RETURN DISTINCT r.name AS name, r.path AS path
+                ORDER BY r.path
             """
 
-        elif query == "classes":
+        if query == "Directory":
+            return """
+                MATCH (d:Directory)-[:CONTAINS*]->(f:File)
+                WHERE f.path ENDS WITH '.cpp' OR f.path ENDS WITH '.h' OR f.path ENDS WITH '.hpp' OR f.path ENDS WITH '.hh'
+                RETURN DISTINCT d.name AS name, d.path AS path
+                ORDER BY d.path
+            """
+
+        if query == "File":
+            return """
+                MATCH (f:File)
+                WHERE f.path ENDS WITH '.cpp' OR f.path ENDS WITH '.h' OR f.path ENDS WITH '.hpp' OR f.path ENDS WITH '.hh'
+                RETURN f.name AS name, f.path AS path, f.relative_path AS relative_path
+                ORDER BY f.path
+            """
+
+        if query == "Module":
+            return """
+                MATCH (f:File)-[i:IMPORTS]->(m:Module)
+                WHERE f.path ENDS WITH '.cpp' OR f.path ENDS WITH '.h' OR f.path ENDS WITH '.hpp' OR f.path ENDS WITH '.hh'
+                RETURN f.name AS file_name,
+                       m.name AS module_name,
+                       i.imported_name AS imported_name,
+                       i.full_import_name AS full_import_name,
+                       i.line_number AS line_number
+                ORDER BY f.path, i.line_number, m.name
+            """
+
+        if query == "Function":
+            return """
+                MATCH (fn:Function)
+                WHERE fn.lang = 'cpp'
+                RETURN fn.name AS name,
+                       fn.path AS path,
+                       fn.line_number AS line_number,
+                       fn.end_line AS end_line,
+                       fn.args AS args,
+                       fn.docstring AS docstring,
+                       fn.cyclomatic_complexity AS cyclomatic_complexity
+                ORDER BY fn.path, fn.line_number
+            """
+
+        if query == "Class":
             return """
                 MATCH (c:Class)
-                RETURN c.name AS name, c.path AS path, 
-                    c.line_number AS line_number, c.docstring AS docstring
+                WHERE c.lang = 'cpp'
+                RETURN c.name AS name,
+                       c.path AS path,
+                       c.line_number AS line_number,
+                       c.end_line AS end_line,
+                       c.bases AS bases,
+                       c.docstring AS docstring
                 ORDER BY c.path, c.line_number
             """
 
-        elif query == "imports":
-            return """
-                MATCH (f:File)-[i:IMPORTS]->(m:Module)
-                RETURN f.name AS file_name, m.name AS module_name, 
-                    m.full_import_name AS full_import_name, m.alias AS alias
-                ORDER BY f.name
-            """
-
-        elif query == "structs":
-            return """
-                MATCH (s:Struct)
-                RETURN s.name AS name, s.path AS path, 
-                    s.line_number AS line_number, s.fields AS fields
-                ORDER BY s.path, s.line_number
-            """
-
-        elif query == "enums":
-            return """
-                MATCH (e:Enum)
-                RETURN e.name AS name, e.path AS path, 
-                    e.line_number AS line_number, e.values AS values
-                ORDER BY e.path, e.line_number
-            """
-
-        elif query == "unions":
-            return """
-                MATCH (u:Union)
-                RETURN u.name AS name, u.path AS path, 
-                    u.line_number AS line_number, u.members AS members
-                ORDER BY u.path, u.line_number
-            """
-
-        elif query == "macros":
-            return """
-                MATCH (m:Macro)
-                RETURN m.name AS name, m.path AS path, 
-                    m.line_number AS line_number, m.value AS value
-                ORDER BY m.path, m.line_number
-            """
-
-        elif query == "variables":
+        if query == "Variable":
             return """
                 MATCH (v:Variable)
-                RETURN v.name AS name, v.path AS path, 
-                    v.line_number AS line_number, v.value AS value, 
-                    v.context AS context
+                WHERE v.lang = 'cpp'
+                RETURN v.name AS name,
+                       v.path AS path,
+                       v.line_number AS line_number,
+                       v.value AS value,
+                       v.context AS context
                 ORDER BY v.path, v.line_number
             """
 
-        else:
-            raise ValueError(f"Unsupported query type: {query}")
+        if query in ("Struct", "Enum", "Union", "Macro"):
+            return f"""
+                MATCH (n:{query})
+                WHERE n.lang = 'cpp'
+                RETURN n.name AS name, n.path AS path, n.line_number AS line_number
+                ORDER BY n.path, n.line_number
+            """
+
+        raise ValueError(f"Unsupported C++ query type: {query}")

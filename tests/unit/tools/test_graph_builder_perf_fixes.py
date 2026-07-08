@@ -229,9 +229,9 @@ class TestCreateAllFunctionCallsV3:
     """Tests for the V3 _create_all_function_calls method (Change 2)."""
 
     def _run(self, all_file_data, imports_map=None, file_class_lookup=None,
-             skip_external_env="false"):
+             skip_external_env="false", backend="neo4j"):
         session = _RecordingSession()
-        gb, _ = _make_graph_builder(session)
+        gb, _ = _make_graph_builder(session, backend=backend)
         with patch("codegraphcontext.tools.indexing.resolution.calls.get_config_value",
                    return_value=skip_external_env):
             gb._create_all_function_calls(
@@ -381,7 +381,7 @@ class TestCreateAllFunctionCallsV3:
             }],
         }]
 
-        calls = self._run(file_data)
+        calls = self._run(file_data, backend="kuzudb")
         call_write = next(c for c in calls if "CALLS" in c["query"])
 
         assert "called.line_number = row.called_line_number" in call_write["query"]
@@ -460,7 +460,8 @@ class TestCreateAllFunctionCallsV3:
         calls = self._run(file_data)
         call_queries = [c["query"] for c in calls if "CALLS" in c.get("query", "")]
         labels_found = any(
-            ":Function" in q or ":Class" in q or ":File" in q
+            ":Function" in q or ":Class" in q or ":File" in q or
+            ":`Function`" in q or ":`Class`" in q or ":`File`" in q
             for q in call_queries
         )
         assert labels_found, "Expected label-specific MATCH in CALLS queries"

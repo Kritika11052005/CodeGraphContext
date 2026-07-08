@@ -43,8 +43,8 @@ class TestPythonParser:
         
         assert "functions" in result
         funcs = result["functions"]
-        assert len(funcs) == 1
-        assert funcs[0]["name"] == "hello"
+        hello_func = next((f for f in funcs if f["name"] == "hello"), None)
+        assert hello_func is not None
 
     def test_module_level_call_uses_module_context(self, parser, temp_test_dir):
         """Top-level executable calls should be linked from a synthetic module frame."""

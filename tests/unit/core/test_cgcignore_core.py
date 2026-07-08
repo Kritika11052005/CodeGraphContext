@@ -76,7 +76,17 @@ def test_find_cgcignore_does_not_escape_non_git_root(tmp_path: Path):
     (parent / ".cgcignore").write_text("*.txt\n", encoding="utf-8")
 
     default_patterns = ["*.png"]
-    spec, resolved = build_ignore_spec(ignore_root=repo, default_patterns=default_patterns)
+    
+    # Patch Path.exists to make sure .git is never considered to exist in parent directories
+    from unittest.mock import patch
+    original_exists = Path.exists
+    def mock_exists(self):
+        if self.name == ".git":
+            return False
+        return original_exists(self)
+        
+    with patch.object(Path, "exists", mock_exists):
+        spec, resolved = build_ignore_spec(ignore_root=repo, default_patterns=default_patterns)
 
     assert resolved == repo / ".cgcignore"
     assert (repo / ".cgcignore").exists()

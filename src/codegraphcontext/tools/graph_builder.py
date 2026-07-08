@@ -207,10 +207,10 @@ class GraphBuilder:
             try:
                 repo_path_obj = Path(resolved_repo_str).resolve()
                 file_path_obj = Path(file_path_str).resolve()
-                relative_path = str(file_path_obj.relative_to(repo_path_obj))
+                relative_path = file_path_obj.relative_to(repo_path_obj).as_posix()
             except ValueError:
                 try:
-                    relative_path = os.path.relpath(str(file_path_obj), str(repo_path_obj))
+                    relative_path = Path(os.path.relpath(str(file_path_obj), str(repo_path_obj))).as_posix()
                 except Exception:
                     relative_path = file_name
 

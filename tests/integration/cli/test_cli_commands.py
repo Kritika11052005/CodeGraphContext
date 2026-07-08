@@ -227,6 +227,7 @@ def kuzudb_env():
     env = {
         "DEFAULT_DATABASE": "kuzudb",
         "CGC_RUNTIME_DB_TYPE": "kuzudb",
+        "ALLOW_DB_DELETION": "true",
     }
     with patch.dict(os.environ, env, clear=False):
         yield
@@ -385,7 +386,7 @@ def test_cli_inventory_grouped_from_source():
     assert inventory["mcp"] == {"setup", "start", "tools"}
     assert inventory["neo4j"] == {"setup"}
     assert inventory["config"] == {"show", "set", "reset", "db"}
-    assert inventory["bundle"] == {"export", "import", "load"}
+    assert inventory["bundle"] == {"export", "import", "load", "merge"}
     assert inventory["hook"] == {"install", "uninstall", "status"}
     assert inventory["registry"] == {"list", "search", "download", "request"}
     assert inventory["find"] == {"name", "pattern", "type", "variable", "content", "decorator", "argument"}
@@ -425,6 +426,7 @@ def test_all_canonical_cli_commands_run_with_kuzudb(kuzudb_env, cli_test_stubs):
         ["bundle", "export", bundle_export],
         ["bundle", "import", bundle_file],
         ["bundle", "load", bundle_file],
+        ["bundle", "merge", bundle_file, bundle_file, bundle_export],
         ["hook", "install"],
         ["hook", "uninstall"],
         ["hook", "status"],
@@ -794,6 +796,8 @@ def test_load_credentials_utf8_decoding_robustness(monkeypatch, tmp_path):
     
     # We will write invalid UTF-8 bytes to the global .env file path
     monkeypatch.setenv("HOME", str(tmp_path))
+    if os.name == "nt":
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
     
     global_dir = tmp_path / ".codegraphcontext"
     global_dir.mkdir(parents=True, exist_ok=True)
